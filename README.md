@@ -23,3 +23,11 @@ No build process or server is required.
 - North is displayed as dummy after the opening lead; South controls both declarer and dummy cards.
 - This build uses a fixed deal; it does not guarantee success for every line of play.
 - Hint suggestions are informational, not guaranteed optimal moves.
+
+
+## v0.1.1 — Trick History
+- กด 📜 History ได้ตลอดเกมหรือหลังจบเกม
+- แสดงไพ่ทั้งสี่ใบตามลำดับที่ลงจริง ระบุ Leader ผู้ชนะ ไพ่ชนะ และคะแนนสะสมทุก Trick
+- ข้อมูลแสดงเฉพาะ Tricks ที่เล่นครบแล้ว ไม่เปิดเผยไพ่ที่ยังไม่เล่น
+- ปิดด้วยปุ่ม ปิด, กลับไปเล่นต่อ, แตะฉากหลัง หรือ Escape
+- Restart จะล้างประวัติและเริ่มไพ่ชุดเดิม

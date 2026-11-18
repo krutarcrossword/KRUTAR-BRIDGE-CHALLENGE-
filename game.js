@@ -29,9 +29,39 @@ function aiTurn(){if(!state||state.phase!=='playing'||!['W','E'].includes(state.
 function next(){if(state.phase!=='review')return;state.plays=[];if(state.history.length===13){state.phase='result';message(state.wins.NS>=8?'🎉 CONTRACT MADE!\nทำสัญญา 2♠ สำเร็จ! ชนะ '+state.wins.NS+' Tricks':'CONTRACT DOWN\nทีมเราชนะ '+state.wins.NS+' Tricks ต้องการ 8 Tricks\nกด Restart เพื่อลองใหม่');}else{state.phase='playing';message('Trick '+(state.history.length+1)+' · '+state.turn+' เป็นผู้นำไพ่\nเลือกไพ่ที่มีขอบสีเขียวเพื่อเล่น');if(['W','E'].includes(state.turn))setTimeout(aiTurn,400)}render()}
 function hint(){if(!state||state.phase!=='playing')return message('เริ่มเกมก่อนจึงใช้คำใบ้ได้');if(!['N','S'].includes(state.turn))return message('รอ AI ลงไพ่ก่อน');state.hints++;let lead=state.plays[0]?.card.s,opts=legal(state.hands[state.turn],lead),high=opts.slice().sort((a,b)=>b.r-a.r)[0];message('💡 HINT · '+state.turn+'\n'+(lead?'ต้องตามดอก '+ICON[lead]+' ถ้ามี\n':'คุณเป็นผู้นำ Trick นี้\n')+'ไพ่ที่ลงได้: '+opts.map(label).join(' ')+'\nลองพิจารณา '+label(high)+' และดูว่าควรเก็บไพ่สูงไว้หรือไม่');}
 function cardElement(card,enabled,selectedNow){let b=document.createElement('button');b.className='card'+(['H','D'].includes(card.s)?' red':'')+(enabled?' legal':'')+(selectedNow?' selected':'');b.textContent=label(card);b.disabled=!enabled;b.title=label(card);if(enabled)b.onclick=()=>{selected={seat:state.turn,card};render()};return b}
-function render(){if(!state)return;let isPlaying=state.phase==='playing';$('ns').textContent=state.wins.NS;$('ew').textContent=state.wins.EW;$('trickNo').textContent=Math.min(state.history.length+1,13);$('need').textContent='NEED '+Math.max(0,8-state.wins.NS);$('northCount').textContent='('+state.hands.N.length+')';$('southCount').textContent='('+state.hands.S.length+')';$('westCount').textContent=state.hands.W.length+' cards';$('eastCount').textContent=state.hands.E.length+' cards';
+function render(){if(!state)return;let isPlaying=state.phase==='playing';$('historyCount').textContent=state.history.length;$('ns').textContent=state.wins.NS;$('ew').textContent=state.wins.EW;$('trickNo').textContent=Math.min(state.history.length+1,13);$('need').textContent='NEED '+Math.max(0,8-state.wins.NS);$('northCount').textContent='('+state.hands.N.length+')';$('southCount').textContent='('+state.hands.S.length+')';$('westCount').textContent=state.hands.W.length+' cards';$('eastCount').textContent=state.hands.E.length+' cards';
  for(let seat of ['N','S']){let el=$(seat==='N'?'northHand':'southHand');el.replaceChildren();if(seat==='N'&&!state.dummy){let back=document.createElement('div');back.className='back';back.textContent='✦';el.append(back);continue}let lead=state.plays[0]?.card.s,can=isPlaying&&state.turn===seat,allowed=can?new Set(legal(state.hands[seat],lead).map(key)):new Set();state.hands[seat].forEach(c=>el.append(cardElement(c,can&&allowed.has(key(c)),selected&&selected.seat===seat&&key(selected.card)===key(c))))}
  let tr=$('trick');tr.replaceChildren();state.plays.forEach(p=>{let wrap=document.createElement('div');wrap.className='played';let name=document.createElement('div');name.textContent=p.seat;let card=cardElement(p.card,false,false);if(state.phase==='review'&&winner(state.plays)===p.seat)card.classList.add('winner');wrap.append(name,card);tr.append(wrap)});
  $('start').hidden=state.phase!=='ready';$('confirm').hidden=!(isPlaying&&['N','S'].includes(state.turn));$('confirm').disabled=!selected;$('confirm').textContent=selected?'PLAY '+label(selected.card):'SELECT A CARD';$('next').hidden=state.phase!=='review';if(state.phase==='result'){$('next').hidden=true;}
 }
 $('start').onclick=start;$('restart').onclick=()=>{if(confirm('เริ่มภารกิจใหม่ด้วยไพ่ชุดเดิม?'))newGame()};$('hint').onclick=hint;$('next').onclick=next;$('confirm').onclick=()=>{if(selected)play(selected.seat,selected.card)};newGame();message('MISSION 01 · 2♠\nเป้าหมาย: ทีม North–South ชนะอย่างน้อย 8 จาก 13 Tricks\nSouth เป็น Declarer · West นำไพ่ก่อน\nกด Start Mission เพื่อเริ่ม');
+
+// History is read-only: opening it never advances turns or exposes hidden hands.
+function renderHistory(){
+ const list=$('historyList');list.replaceChildren();
+ $('historySummary').textContent=`เล่นแล้ว ${state.history.length}/13 Tricks · N–S ${state.wins.NS} : ${state.wins.EW} E–W · เป้าหมาย 8 Tricks`;
+ if(!state.history.length){const empty=document.createElement('div');empty.className='history-empty';empty.textContent='ยังไม่มี Trick ที่เล่นครบ 4 ใบ เริ่มเล่นเพื่อบันทึกประวัติ';list.append(empty);return;}
+ let nsWins=0,ewWins=0;
+ state.history.forEach((entry,i)=>{
+  const side=team(entry.winner);if(side==='NS')nsWins++;else ewWins++;
+  const section=document.createElement('section');section.className='history-item';
+  const heading=document.createElement('h3');heading.textContent=`Trick ${i+1} · ${entry.winner} ชนะ (${side})`;section.append(heading);
+  const cards=document.createElement('div');cards.className='history-cards';
+  entry.plays.forEach((play,position)=>{
+   const cell=document.createElement('div');cell.className='history-play'+(play.seat===entry.winner?' win':'');
+   const name=document.createElement('span');name.textContent=play.seat+(position===0?' · Lead':'');
+   const card=document.createElement('b');card.className=['H','D'].includes(play.card.s)?'red':'';card.textContent=label(play.card);
+   cell.append(name,card);cards.append(cell);
+  });section.append(cards);
+  const note=document.createElement('div');note.className='history-note';
+  note.textContent=`ผู้ชนะ: ${entry.winner} · ไพ่ชนะ ${label(entry.plays.find(p=>p.seat===entry.winner).card)} · คะแนนสะสม N–S ${nsWins} : ${ewWins} E–W`;
+  section.append(note);list.append(section);
+ });
+}
+function openHistory(){renderHistory();$('historyModal').hidden=false;$('closeHistory').focus()}
+function closeHistory(){$('historyModal').hidden=true;$('historyBtn').focus()}
+$('historyBtn').onclick=openHistory;
+$('closeHistory').onclick=closeHistory;
+$('closeHistoryBottom').onclick=closeHistory;
+$('historyModal').addEventListener('click',e=>{if(e.target===$('historyModal'))closeHistory()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('historyModal').hidden)closeHistory()});
